@@ -49,13 +49,13 @@ def test_all_scenarios():
             env=env, 
             start=start_pos, 
             goal=goal_pos, 
-            num_particles=30,
+            num_particles=100,
             num_waypoints=10,  # Ajustable selon complexité
-            max_iter=10
+            max_iter=150
         )
 
         t0 = time.time()
-        path_pso, score_pso = pso_planner.optimize(random_restart=True)
+        path_pso, score_pso = pso_planner.optimize()
         dt_pso = time.time() - t0
         print(f"PSO terminé en {dt_pso:.4f}s | Score: {score_pso:.1f}")
 

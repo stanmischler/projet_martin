@@ -155,7 +155,7 @@ class PSO_PathPlanner:
 
                     fitness=self.evaluate_position(position)
 
-                    delta=fitness-p.p_best_score
+                    delta=fitness-self.g_best_score
 
                     q=min(1,np.exp(-delta/T))
 
@@ -168,7 +168,7 @@ class PSO_PathPlanner:
 
                     if fitness < p.p_best_score:
                         p.p_best_score = fitness
-                    p.p_best = position.copy()
+                        p.p_best = position.copy()
 
         best_p = Particle(self.num_waypoints, self.start, self.goal, self.env)
         personal_records=[p.p_best_score for p in self.particles]
