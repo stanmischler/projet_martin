@@ -27,6 +27,10 @@ class Environment:
         self.width = width
         self.height = height
         self.obstacles = obstacles # List of (x, y, w, h)
+        self.collision_basic_penalty = 10000
+        self.collision_gradient_penalty = 200
+        self.interection_penalty = 2000
+
 
     def is_inside(self, point):
         x, y = point
@@ -71,6 +75,60 @@ class Environment:
                     return True
         
         return False
+    
+    def penalize_self_intersection(self, path):
+        """
+        Vérifie si le chemin se coupe lui-même (boucle).
+        Retourne le nombre d'auto-intersections détectées.
+        """
+        N_intersections = 0
+        # On parcourt tous les segments [p1, p2]
+        for i in range(len(path) - 1):
+            p1 = path[i]
+            p2 = path[i+1]
+            
+            # On compare avec tous les AUTRES segments [p3, p4]
+            # On commence à i+2 car un segment touche forcément son voisin (en i+1),
+            # ce qui n'est pas une "intersection" mais une jonction normale.
+            for j in range(i + 2, len(path) - 1):
+                p3 = path[j]
+                p4 = path[j+1]
+                
+                # On utilise ta fonction existante lines_intersect
+                if lines_intersect(p1, p2, p3, p4):
+                    N_intersections += 1
+        
+        return N_intersections * self.interection_penalty
+    
+    def compute_collision_penalty(self, p1, p2, steps=100):
+        """
+        Calcule une pénalité proportionnelle à la gravité de la collision.
+        Utilise l'intersection exacte pour détecter, et l'échantillonnage pour quantifier.
+        """
+        # 1. D'abord, le check EXACT (rapide et sûr)
+        if not self.check_collision_segment(p1, p2):
+            return 0.0
+
+        # 2. Si collision détectée, on échantillonne pour avoir un gradient
+        points_in_obstacle = 0
+        vec = p2 - p1
+        
+        for i in range(steps + 1):
+            # Interpolation linéaire
+            p = p1 + vec * (i / steps)
+            if self.check_collision_point(p):
+                points_in_obstacle += 1
+        
+        # --- CAS CRITIQUE ---
+        # Si l'intersection exacte dit "VRAI" mais que l'échantillonnage rate l'obstacle
+        # (ex: mur très fin qui passe entre deux points d'échantillonnage),
+        # on doit quand même renvoyer une pénalité non nulle !
+        if points_in_obstacle == 0:
+            return self.collision_basic_penalty # Pénalité forfaitaire pour les murs fins
+            
+        # Sinon, pénalité proportionnelle + base
+        # Base (1000) + Gradient (points * 200)
+        return self.collision_basic_penalty + (points_in_obstacle * self.collision_gradient_penalty)
 
     def plot(self, ax, path=None, color='blue', title="Environment"):
         ax.set_xlim(0, self.width)

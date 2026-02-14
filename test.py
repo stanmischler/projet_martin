@@ -8,6 +8,34 @@ from geometry import parse_input_file
 from pso import PSO_PathPlanner
 from rrt import RRT
 
+def smooth_path(env, path):
+    """
+    Simplifie le chemin en essayant de relier les points directements.
+    Supprime les zigzags inutiles.
+    """
+    if path is None or len(path) < 3:
+        return path
+        
+    # On convertit en liste pour pouvoir modifier facilement
+    smooth_path = [path[0]]
+    current_idx = 0
+    
+    while current_idx < len(path) - 1:
+        # On cherche le point le plus loin possible connectable en ligne droite
+        next_valid_idx = current_idx + 1
+        
+        for i in range(len(path) - 1, current_idx, -1):
+            # Si on peut relier 'current' à 'i' sans collision...
+            if not env.check_collision_segment(path[current_idx], path[i]):
+                next_valid_idx = i
+                break
+        
+        # On ajoute ce point et on avance
+        smooth_path.append(path[next_valid_idx])
+        current_idx = next_valid_idx
+        
+    return np.array(smooth_path)
+
 def test_all_scenarios():
     # Liste des fichiers de scénarios
     # Assurez-vous que le dossier 'scenario' existe et contient ces fichiers
@@ -20,7 +48,7 @@ def test_all_scenarios():
         print(f"Dossier courant : {os.getcwd()}")
         return
 
-    for filename in scenarios:
+    for filename in scenarios[4:5]:  # Test du scénario 4
         filepath = os.path.join("scenario", filename)
         
         print(f"\n{'='*60}")
@@ -49,13 +77,15 @@ def test_all_scenarios():
             env=env, 
             start=start_pos, 
             goal=goal_pos, 
-            num_particles=100,
-            num_waypoints=10,  # Ajustable selon complexité
-            max_iter=150
+            num_particles=200,
+            num_waypoints=20,  # Ajustable selon complexité
+            max_iter=200
         )
 
         t0 = time.time()
-        path_pso, score_pso = pso_planner.optimize()
+        path_pso, score_pso, history = pso_planner.optimize(random_restart=True, simulated_annealing=False, dimensional_learning=True)
+        path_pso = smooth_path(env, path_pso)  # On lisse le chemin pour la visualisation
+        score_pso = pso_planner.evaluate_position(path_pso)  # Score final du chemin lissé
         dt_pso = time.time() - t0
         print(f"PSO terminé en {dt_pso:.4f}s | Score: {score_pso:.1f}")
 
@@ -68,7 +98,7 @@ def test_all_scenarios():
             goal=goal_pos,
             delta_s=50.0, 
             delta_r=150.0,
-            max_iter=3000
+            max_iter=1
         )
 
         t0 = time.time()
@@ -86,6 +116,27 @@ def test_all_scenarios():
         
         # Plot 1: PSO
         env.plot(ax1, path=path_pso, title=f"PSO ({dt_pso:.2f}s) - Score: {score_pso:.0f}")
+        # Tracer l'historique des chemins explorés (en vert clair)
+        for i in range(0, len(history), 5):
+            raw_waypoints = history[i]
+            
+            # 1. On remet en forme (N points, 2 coordonnées)
+            waypoints = raw_waypoints.reshape((-1, 2))
+            
+            # 2. On colle le Départ au début et l'Arrivée à la fin
+            # (Exactement comme dans la méthode get_full_path de la particule)
+            full_path_history = np.vstack([start_pos, waypoints, goal_pos])
+            
+            # 3. On trace
+            # alpha=0.1 est très important : cela rend les traits transparents
+            # pour voir les zones où l'algorithme a beaucoup cherché.
+            ax1.plot(full_path_history[:, 0], full_path_history[:, 1], 
+                     color='green', linewidth=1, alpha=0.1)
+
+        # Affichage du chemin FINAL (en bleu ou noir, bien visible) par dessus
+        if path_pso is not None:
+             ax1.plot(path_pso[:, 0], path_pso[:, 1], color='blue', linewidth=3, label='Best Path')
+
         ax1.scatter(start_pos[0], start_pos[1], c='green', s=100, label='Start')
         ax1.scatter(goal_pos[0], goal_pos[1], c='red', marker='*', s=150, label='Goal')
         ax1.legend()
