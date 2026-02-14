@@ -51,11 +51,11 @@ def test_all_scenarios():
             goal=goal_pos, 
             num_particles=30,
             num_waypoints=10,  # Ajustable selon complexité
-            max_iter=15000
+            max_iter=10
         )
 
         t0 = time.time()
-        path_pso, score_pso = pso_planner.optimize_annealing(T_0=100,beta=0.9, random_restart=True)
+        path_pso, score_pso = pso_planner.optimize(random_restart=True)
         dt_pso = time.time() - t0
         print(f"PSO terminé en {dt_pso:.4f}s | Score: {score_pso:.1f}")
 

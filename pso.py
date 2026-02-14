@@ -54,8 +54,8 @@ class PSO_PathPlanner:
         
         # Hyperparameters
         self.w = 0.5  # Inertia
-        self.c1 = 1.5 # Cognitive (local)
-        self.c2 = 1.5 # Social (global)
+        self.c1 = 0.5 # Cognitive (local)
+        self.c2 = 2 # Social (global)
     
     def evaluate_position(self, position):
         waypoints = position.reshape((-1, 2))
@@ -124,7 +124,7 @@ class PSO_PathPlanner:
                     self.g_best = p.position.copy()
         
         for k in range(self.max_iter):
-            T = T_0 * np.exp(-beta * k)
+            T = T_0 * (beta ** k)
             for p in self.particles:
 
                 if random_restart and np.random.rand() < 0.1:
