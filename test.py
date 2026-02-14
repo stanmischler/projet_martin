@@ -55,7 +55,7 @@ def test_all_scenarios():
         )
 
         t0 = time.time()
-        path_pso, score_pso = pso_planner.optimize()
+        path_pso, score_pso = pso_planner.optimize(random_restart=True)
         dt_pso = time.time() - t0
         print(f"PSO terminé en {dt_pso:.4f}s | Score: {score_pso:.1f}")
 
@@ -68,11 +68,11 @@ def test_all_scenarios():
             goal=goal_pos,
             delta_s=50.0, 
             delta_r=150.0,
-            max_iter=1000
+            max_iter=3000
         )
 
         t0 = time.time()
-        path_rrt = rrt_planner.plan(intelligent_sampling=True) # On active le sampling intelligent
+        path_rrt = rrt_planner.plan(intelligent_sampling=True, triang_opt=True) # On active le sampling intelligent
         dt_rrt = time.time() - t0
         
         if path_rrt is not None:

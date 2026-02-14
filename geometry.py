@@ -20,7 +20,7 @@ def lines_intersect(p1, p2, p3, p4):
     ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom
 
     # On utilise une petite tolérance pour les cas limites
-    return 0 <= ua <= 1 and 0 <= ub <= 1
+    return 0<= ua <= 1 and 0 <= ub <= 1
 
 class Environment:
     def __init__(self, width, height, obstacles):

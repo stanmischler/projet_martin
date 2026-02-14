@@ -55,7 +55,7 @@ class PSO_PathPlanner:
         self.c1 = 1.5 # Cognitive (local)
         self.c2 = 1.5 # Social (global)
 
-    def optimize(self):
+    def optimize(self, random_restart=False):
         for k in range(self.max_iter):
             for p in self.particles:
                 score = p.evaluate()
@@ -72,13 +72,22 @@ class PSO_PathPlanner:
             
             # Move particles
             for p in self.particles:
-                r1 = np.random.rand(len(p.position))
-                r2 = np.random.rand(len(p.position))
-                
-                p.velocity = (self.w * p.velocity) + \
-                             (self.c1 * r1 * (p.p_best - p.position)) + \
-                             (self.c2 * r2 * (self.g_best - p.position))
-                p.position = p.position + p.velocity
+                if random_restart and np.random.rand() < 0.1:
+                    positions=np.random.rand(self.num_waypoints * 2)
+                    for i in range(self.num_waypoints):
+                        positions[2*i] *= self.env.width
+                        positions[2*i+1] *= self.env.height
+                    p.position = positions
+                    p.velocity = np.zeros_like(positions)
+
+                else:
+                    r1 = np.random.rand(len(p.position))
+                    r2 = np.random.rand(len(p.position))
+                    
+                    p.velocity = (self.w * p.velocity) + \
+                                (self.c1 * r1 * (p.p_best - p.position)) + \
+                                (self.c2 * r2 * (self.g_best - p.position))
+                    p.position = p.position + p.velocity
         
         # Reconstruct best path
         best_p = Particle(self.num_waypoints, self.start, self.goal, self.env)
