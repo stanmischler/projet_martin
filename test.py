@@ -8,10 +8,6 @@ from geometry import parse_input_file
 from pso import PSO_PathPlanner
 from rrt import RRT
 
-<<<<<<< HEAD
-def run_comparison_view():
-    # Liste des scénarios
-=======
 def smooth_path(env, path):
     """
     Simplifie le chemin en essayant de relier les points directements.
@@ -40,10 +36,8 @@ def smooth_path(env, path):
         
     return np.array(smooth_path)
 
-def test_all_scenarios():
-    # Liste des fichiers de scénarios
-    # Assurez-vous que le dossier 'scenario' existe et contient ces fichiers
->>>>>>> 4dc95b06e77a70ee10f9bf111c5347f6555af549
+def run_comparison_view():
+    # Liste des scénarios
     scenarios = ["scenario0.txt", "scenario1.txt", "scenario2.txt", "scenario3.txt", "scenario4.txt"]
     
     # Vérification du dossier
@@ -51,7 +45,6 @@ def test_all_scenarios():
         print("Erreur : Dossier 'scenario' introuvable.")
         return
 
-<<<<<<< HEAD
     # --- 1. CONFIGURATION & AFFICHAGE TERMINAL ---
     # PSO Params
     pso_particles = 30
@@ -96,9 +89,6 @@ def test_all_scenarios():
 
     # --- 3. BOUCLE DE TRAITEMENT ---
     for i, filename in enumerate(scenarios):
-=======
-    for filename in scenarios[4:5]:  # Test du scénario 4
->>>>>>> 4dc95b06e77a70ee10f9bf111c5347f6555af549
         filepath = os.path.join("scenario", filename)
         ax_pso = axes[i, 0]
         ax_rrt = axes[i, 1]
@@ -123,7 +113,6 @@ def test_all_scenarios():
             print("Env None.")
             continue
 
-<<<<<<< HEAD
         # --- EXECUTION PSO ---
         pso = PSO_PathPlanner(env, start_pos, goal_pos, 
                               num_particles=pso_particles, 
@@ -131,7 +120,9 @@ def test_all_scenarios():
                               max_iter=pso_iter)
         
         t0 = time.time()
-        path_pso, score_pso = pso.optimize(random_restart=pso_restart)
+        path_pso, score_pso, history = pso.optimize(random_restart=pso_restart)
+        path_pso = smooth_path(env, path_pso)  # On lisse le chemin pour la visualisation
+        score_pso = pso.evaluate_position(path_pso)  # Score final du chemin lissé
         dt_pso = time.time() - t0
         
         # Plot PSO
@@ -139,40 +130,6 @@ def test_all_scenarios():
         ax_pso.set_title(f"Score: {score_pso:.0f} | Temps: {dt_pso:.3f}s", fontsize=10, backgroundcolor='#e6f2ff')
         ax_pso.scatter(*start_pos, c='green', s=60, label='Start', zorder=5)
         ax_pso.scatter(*goal_pos, c='red', marker='*', s=100, label='Goal', zorder=5)
-=======
-        print(f"Environnement : {env.width}x{env.height}")
-        print(f"Obstacles : {len(env.obstacles)}")
-
-        # --- ALGO 1 : PSO ---
-        print("\n--- Lancement PSO ---")
-        pso_planner = PSO_PathPlanner(
-            env=env, 
-            start=start_pos, 
-            goal=goal_pos, 
-            num_particles=300,
-            num_waypoints=20,  # Ajustable selon complexité
-            max_iter=200
-        )
-
-        t0 = time.time()
-        path_pso, score_pso, history = pso_planner.optimize(random_restart=True, simulated_annealing=True, dimensional_learning=True)
-        path_pso = smooth_path(env, path_pso)  # On lisse le chemin pour la visualisation
-        score_pso = pso_planner.evaluate_position(path_pso)  # Score final du chemin lissé
-        dt_pso = time.time() - t0
-        print(f"PSO terminé en {dt_pso:.4f}s | Score: {score_pso:.1f}")
-
-        # --- ALGO 2 : RRT ---
-        print("\n--- Lancement RRT ---")
-        # Paramètres RRT : delta_s (pas), delta_r (rayon rewiring)
-        rrt_planner = RRT(
-            env=env,
-            start=start_pos,
-            goal=goal_pos,
-            delta_s=50.0, 
-            delta_r=150.0,
-            max_iter=1
-        )
->>>>>>> 4dc95b06e77a70ee10f9bf111c5347f6555af549
 
         # --- EXECUTION RRT ---
         rrt = RRT(env, start_pos, goal_pos, 
@@ -194,42 +151,10 @@ def test_all_scenarios():
             status_color = "#e6ffe6" # Vert pâle
             status_txt = "SUCCÈS"
 
-<<<<<<< HEAD
         # Plot RRT
         env.plot(ax_rrt, path=path_rrt, color='red')
         title_str = f"{status_txt} | Coût: {cost_rrt:.1f} | Temps: {dt_rrt:.3f}s"
         ax_rrt.set_title(title_str, fontsize=10, backgroundcolor=status_color)
-=======
-        # --- VISUALISATION CÔTE À CÔTE ---
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-        
-        # Plot 1: PSO
-        env.plot(ax1, path=path_pso, title=f"PSO ({dt_pso:.2f}s) - Score: {score_pso:.0f}")
-        # Tracer l'historique des chemins explorés (en vert clair)
-        for i in range(0, len(history), 5):
-            raw_waypoints = history[i]
-            
-            # 1. On remet en forme (N points, 2 coordonnées)
-            waypoints = raw_waypoints.reshape((-1, 2))
-            
-            # 2. On colle le Départ au début et l'Arrivée à la fin
-            # (Exactement comme dans la méthode get_full_path de la particule)
-            full_path_history = np.vstack([start_pos, waypoints, goal_pos])
-            
-            # 3. On trace
-            # alpha=0.1 est très important : cela rend les traits transparents
-            # pour voir les zones où l'algorithme a beaucoup cherché.
-            ax1.plot(full_path_history[:, 0], full_path_history[:, 1], 
-                     color='green', linewidth=1, alpha=0.1)
-
-        # Affichage du chemin FINAL (en bleu ou noir, bien visible) par dessus
-        if path_pso is not None:
-             ax1.plot(path_pso[:, 0], path_pso[:, 1], color='blue', linewidth=3, label='Best Path')
-
-        ax1.scatter(start_pos[0], start_pos[1], c='green', s=100, label='Start')
-        ax1.scatter(goal_pos[0], goal_pos[1], c='red', marker='*', s=150, label='Goal')
-        ax1.legend()
->>>>>>> 4dc95b06e77a70ee10f9bf111c5347f6555af549
 
         ax_rrt.scatter(*start_pos, c='green', s=60, zorder=5)
         ax_rrt.scatter(*goal_pos, c='red', marker='*', s=100, zorder=5)
