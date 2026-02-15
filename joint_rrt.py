@@ -72,8 +72,8 @@ class JointRRT:
         return True # CHEMIN SÛR
 
     def joint_plan(self, h=0.01):
-        path1=np.array(self.RRT_1.plan(intelligent_sampling=True, triang_opt=False))
-        path2=np.array(self.RRT_2.plan(intelligent_sampling=True, triang_opt=False))
+        path1=np.array(self.RRT_1.plan(intelligent_sampling=True, triang_opt=False)[0])
+        path2=np.array(self.RRT_2.plan(intelligent_sampling=True, triang_opt=False)[0])
         if path1 is None or path2 is None:
             return None
         t_2=0

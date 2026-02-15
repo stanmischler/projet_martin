@@ -123,10 +123,10 @@ class RRT:
                     if not self.env.check_collision_segment(new_node.pos, self.goal):
                         goal_node = Node(self.goal, new_node)
                         goal_node.cost = new_node.cost + np.linalg.norm(new_node.pos - self.goal)
-
+                        
                         if triang_opt:
-                            return self.triang_opt_path(self.extract_path(goal_node))
-                        return self.extract_path(goal_node)
+                            return self.triang_opt_path(self.extract_path(goal_node)), self.cost(self.triang_opt_path(self.extract_path(goal_node)))
+                        return self.extract_path(goal_node), self.cost(self.extract_path(goal_node))
                     
         return None # No path found
 
@@ -154,4 +154,7 @@ class RRT:
                 i += 1
                 
         return optimized_path
+
+    def cost(self, path):
+        return sum(np.linalg.norm(path[i] - path[i+1]) for i in range(len(path)-1))
         

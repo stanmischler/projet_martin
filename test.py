@@ -8,107 +8,148 @@ from geometry import parse_input_file
 from pso import PSO_PathPlanner
 from rrt import RRT
 
-def test_all_scenarios():
-    # Liste des fichiers de scénarios
-    # Assurez-vous que le dossier 'scenario' existe et contient ces fichiers
+def run_comparison_view():
+    # Liste des scénarios
     scenarios = ["scenario0.txt", "scenario1.txt", "scenario2.txt", "scenario3.txt", "scenario4.txt"]
     
     # Vérification du dossier
     if not os.path.exists("scenario"):
-        print("Erreur : Le dossier 'scenario' n'existe pas.")
-        # On essaie de lister le dossier courant pour aider
-        print(f"Dossier courant : {os.getcwd()}")
+        print("Erreur : Dossier 'scenario' introuvable.")
         return
 
-    for filename in scenarios:
+    # --- 1. CONFIGURATION & AFFICHAGE TERMINAL ---
+    # PSO Params
+    pso_particles = 30
+    pso_waypoints = 7       
+    pso_iter = 1000         
+    pso_restart = True      
+
+    # RRT Params
+    rrt_delta_s = 50.0
+    rrt_delta_r = 150.0
+    rrt_iter = 2000
+    rrt_sampling = True     
+    rrt_opt = True          
+
+    print(f"\n{'='*60}")
+    print(f"COMPARATIF GLOBAL : CONFIGURATION")
+    print(f"{'='*60}")
+    print(f"PSO Settings:")
+    print(f"  - Particules    : {pso_particles}")
+    print(f"  - Waypoints     : {pso_waypoints}")
+    print(f"  - Max Iter      : {pso_iter}")
+    print(f"  - Random Restart: {pso_restart}")
+    print(f"\nRRT Settings:")
+    print(f"  - Delta S       : {rrt_delta_s}")
+    print(f"  - Delta R       : {rrt_delta_r}")
+    print(f"  - Max Iter      : {rrt_iter}")
+    print(f"  - Int. Sampling : {rrt_sampling}")
+    print(f"  - Triang. Opt   : {rrt_opt}")
+    print(f"{'='*60}\n")
+
+    # --- 2. PRÉPARATION FIGURE ---
+    n_rows = len(scenarios)
+    n_cols = 2
+    
+    # constrained_layout gère automatiquement les espacements sans chevauchement
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 4 * n_rows), constrained_layout=True)
+    fig.suptitle("Comparatif Global : PSO (Gauche) vs RRT (Droite)", fontsize=16, fontweight='bold')
+
+    # Cas particulier si un seul scénario
+    if n_rows == 1:
+        axes = np.array([axes])
+
+    # --- 3. BOUCLE DE TRAITEMENT ---
+    for i, filename in enumerate(scenarios):
         filepath = os.path.join("scenario", filename)
+        ax_pso = axes[i, 0]
+        ax_rrt = axes[i, 1]
         
-        print(f"\n{'='*60}")
-        print(f"TEST DU SCENARIO : {filename}")
-        print(f"{'='*60}")
+        # Labels Scénario à gauche
+        ax_pso.set_ylabel(filename, rotation=0, size='large', labelpad=60, fontweight='bold', va='center')
+
+        print(f"Traitement de {filename}...", end=" ", flush=True)
         
         if not os.path.exists(filepath):
-            print(f"Fichier {filepath} introuvable. Passage au suivant.")
+            ax_pso.text(0.5, 0.5, "Fichier introuvable", ha='center')
+            print("Introuvable.")
             continue
 
-        # 1. Chargement du scénario
-        # parse_input_file retourne : env, start1, goal1, start2, goal2, Radius
-        # On utilise *rest pour ignorer les données du robot 2 pour l'instant
         try:
             env, start_pos, goal_pos, *rest = parse_input_file(filepath)
-        except Exception as e:
-            print(f"Erreur lors du parsing de {filename}: {e}")
+        except Exception:
+            print("Erreur Parsing.")
+            continue
+        
+        if env is None: 
+            print("Env None.")
             continue
 
-        print(f"Environnement : {env.width}x{env.height}")
-        print(f"Obstacles : {len(env.obstacles)}")
-
-        # --- ALGO 1 : PSO ---
-        print("\n--- Lancement PSO ---")
-        pso_planner = PSO_PathPlanner(
-            env=env, 
-            start=start_pos, 
-            goal=goal_pos, 
-            num_particles=100,
-            num_waypoints=10,  # Ajustable selon complexité
-            max_iter=150
-        )
-
+        # --- EXECUTION PSO ---
+        pso = PSO_PathPlanner(env, start_pos, goal_pos, 
+                              num_particles=pso_particles, 
+                              num_waypoints=pso_waypoints, 
+                              max_iter=pso_iter)
+        
         t0 = time.time()
-        path_pso, score_pso = pso_planner.optimize()
+        path_pso, score_pso = pso.optimize(random_restart=pso_restart)
         dt_pso = time.time() - t0
-        print(f"PSO terminé en {dt_pso:.4f}s | Score: {score_pso:.1f}")
+        
+        # Plot PSO
+        env.plot(ax_pso, path=path_pso)
+        ax_pso.set_title(f"Score: {score_pso:.0f} | Temps: {dt_pso:.3f}s", fontsize=10, backgroundcolor='#e6f2ff')
+        ax_pso.scatter(*start_pos, c='green', s=60, label='Start', zorder=5)
+        ax_pso.scatter(*goal_pos, c='red', marker='*', s=100, label='Goal', zorder=5)
 
-        # --- ALGO 2 : RRT ---
-        print("\n--- Lancement RRT ---")
-        # Paramètres RRT : delta_s (pas), delta_r (rayon rewiring)
-        rrt_planner = RRT(
-            env=env,
-            start=start_pos,
-            goal=goal_pos,
-            delta_s=50.0, 
-            delta_r=150.0,
-            max_iter=3000
-        )
-
+        # --- EXECUTION RRT ---
+        rrt = RRT(env, start_pos, goal_pos, 
+                  delta_s=rrt_delta_s, 
+                  delta_r=rrt_delta_r, 
+                  max_iter=rrt_iter)
+        
         t0 = time.time()
-        path_rrt = rrt_planner.plan(intelligent_sampling=True, triang_opt=True) # On active le sampling intelligent
+        result_rrt = rrt.plan(intelligent_sampling=rrt_sampling, triang_opt=rrt_opt)
         dt_rrt = time.time() - t0
         
-        if path_rrt is not None:
-            print(f"RRT terminé en {dt_rrt:.4f}s | Chemin trouvé (longueur: {len(path_rrt)} noeuds)")
-        else:
-            print(f"RRT terminé en {dt_rrt:.4f}s | ECHEC (Pas de chemin)")
+        path_rrt = None
+        cost_rrt = float('inf')
+        status_color = "#ffe6e6" # Rouge pâle
+        status_txt = "ECHEC"
 
+        if result_rrt is not None:
+            path_rrt, cost_rrt = result_rrt
+            status_color = "#e6ffe6" # Vert pâle
+            status_txt = "SUCCÈS"
 
-        # --- VISUALISATION CÔTE À CÔTE ---
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-        
-        # Plot 1: PSO
-        env.plot(ax1, path=path_pso, title=f"PSO ({dt_pso:.2f}s) - Score: {score_pso:.0f}")
-        ax1.scatter(start_pos[0], start_pos[1], c='green', s=100, label='Start')
-        ax1.scatter(goal_pos[0], goal_pos[1], c='red', marker='*', s=150, label='Goal')
-        ax1.legend()
+        # Plot RRT
+        env.plot(ax_rrt, path=path_rrt, color='red')
+        title_str = f"{status_txt} | Coût: {cost_rrt:.1f} | Temps: {dt_rrt:.3f}s"
+        ax_rrt.set_title(title_str, fontsize=10, backgroundcolor=status_color)
 
-        # Plot 2: RRT
-        title_rrt = f"RRT ({dt_rrt:.2f}s) - " + ("Succès" if path_rrt is not None else "Échec")
-        env.plot(ax2, path=path_rrt, color='red', title=title_rrt)
-        
-        # Dessiner l'arbre RRT (optionnel mais instructif)
-        # On parcourt tous les noeuds explorés pour voir l'arbre
-        if hasattr(rrt_planner, 'nodes'):
-            for node in rrt_planner.nodes:
-                if node.parent is not None:
-                    p1 = node.pos
-                    p2 = node.parent.pos
-                    ax2.plot([p1[0], p2[0]], [p1[1], p2[1]], 'g-', alpha=0.15, linewidth=1)
+        ax_rrt.scatter(*start_pos, c='green', s=60, zorder=5)
+        ax_rrt.scatter(*goal_pos, c='red', marker='*', s=100, zorder=5)
 
-        ax2.scatter(start_pos[0], start_pos[1], c='green', s=100)
-        ax2.scatter(goal_pos[0], goal_pos[1], c='red', marker='*', s=150)
-        
-        plt.suptitle(f"Comparaison Scénario : {filename}", fontsize=16)
-        plt.tight_layout()
-        plt.show()
+        # Arbre RRT (léger)
+        if hasattr(rrt, 'nodes'):
+            count = 0
+            for node in rrt.nodes:
+                if node.parent:
+                    p1, p2 = node.pos, node.parent.pos
+                    ax_rrt.plot([p1[0], p2[0]], [p1[1], p2[1]], 'g-', alpha=0.1, linewidth=0.5)
+                    count += 1
+                    if count > 2000: break
+
+        # Nettoyage visuel
+        for ax in [ax_pso, ax_rrt]:
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_xlabel("")
+            ax.set_ylabel(ax.get_ylabel()) # Garde le label scénario
+            
+        print("OK.")
+
+    print("\nAffichage terminé.")
+    plt.show()
 
 if __name__ == "__main__":
-    test_all_scenarios()
+    run_comparison_view()
