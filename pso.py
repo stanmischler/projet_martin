@@ -7,6 +7,7 @@ class Particle:
         self.goal = goal
         self.num_waypoints = num_waypoints
         self.env = env
+        self.stagnation_counter = 0
         self.reset()
 
     def reset(self):
@@ -140,44 +141,32 @@ class PSO_PathPlanner:
                         best_ever_score = score
                         best_ever_position = p.position.copy()
 
-            # 2. Dimensional Learning (Amélioré pour Scénario 3)
-            # On ne l'applique que si on n'est pas en train de faire du "bruit" avec le recuit
+            # 2. DIMENSIONAL LEARNING [XCS+19]
             if dimensional_learning:
-                dims = len(self.g_best)
-                # On teste un pas plus grand pour débloquer les situations difficiles
-                steps_to_test = [5.0, 1.0] 
+                # Seuil de stagnation (par exemple 5 itérations sans progrès)
+                stagnation_threshold = 5 
                 
-                for i in range(dims):
-                    original_val = self.g_best[i]
-                    best_val = original_val
-                    current_dim_score = self.g_best_score
-                    
-                    for step in steps_to_test:
-                        # Test +step
-                        self.g_best[i] = original_val + step
-                        score = self.evaluate_position(self.g_best)
-                        if score < current_dim_score:
-                            current_dim_score = score
-                            best_val = self.g_best[i]
-                            # Si on améliore, on met aussi à jour le record historique
-                            if score < best_ever_score:
-                                best_ever_score = score
-                                best_ever_position = self.g_best.copy()
-                            break # On a trouvé mieux, on passe à la dimension suivante
-
-                        # Test -step
-                        self.g_best[i] = original_val - step
-                        score = self.evaluate_position(self.g_best)
-                        if score < current_dim_score:
-                            current_dim_score = score
-                            best_val = self.g_best[i]
-                            if score < best_ever_score:
-                                best_ever_score = score
-                                best_ever_position = self.g_best.copy()
-                            break
-                    
-                    self.g_best[i] = best_val # On valide la meilleure modif
-                    self.g_best_score = current_dim_score
+                for p in self.particles:
+                    if p.stagnation_counter >= stagnation_threshold:
+                        # On essaie d'améliorer son p_best en "apprenant" du g_best
+                        temp_p_best = p.p_best.copy()
+                        
+                        for j in range(len(temp_p_best)):
+                            # On remplace la dimension j par celle du leader global
+                            original_val = temp_p_best[j]
+                            temp_p_best[j] = self.g_best[j]
+                            
+                            # On calcule la fitness de ce nouveau p_best hybride
+                            new_fitness = self.evaluate_position(temp_p_best)
+                            
+                            if new_fitness < p.p_best_score:
+                                # Si c'est mieux, on garde le changement
+                                p.p_best_score = new_fitness
+                                p.p_best[j] = self.g_best[j]
+                                p.stagnation_counter = 0 # On considère qu'elle a appris
+                            else:
+                                # Sinon on remet la valeur d'origine pour cette dimension
+                                temp_p_best[j] = original_val
 
             # 3. Mouvement des particules (Avec Clamping)
             for p in self.particles:

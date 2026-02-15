@@ -77,13 +77,13 @@ def test_all_scenarios():
             env=env, 
             start=start_pos, 
             goal=goal_pos, 
-            num_particles=200,
+            num_particles=300,
             num_waypoints=20,  # Ajustable selon complexité
             max_iter=200
         )
 
         t0 = time.time()
-        path_pso, score_pso, history = pso_planner.optimize(random_restart=True, simulated_annealing=False, dimensional_learning=True)
+        path_pso, score_pso, history = pso_planner.optimize(random_restart=True, simulated_annealing=True, dimensional_learning=True)
         path_pso = smooth_path(env, path_pso)  # On lisse le chemin pour la visualisation
         score_pso = pso_planner.evaluate_position(path_pso)  # Score final du chemin lissé
         dt_pso = time.time() - t0
